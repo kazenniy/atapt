@@ -223,7 +223,7 @@ class atapt:
                          lba_h_low=sector_lba[3], lba_low=sector_lba[0],
                          lba_h_mid=sector_lba[4], lba_mid=sector_lba[1],
                          lba_h_high=sector_lba[5], lba_high=sector_lba[2],
-                         device=0,
+                         device=1 << 6, # Enable LBA on ATA-5 and older drives
                          command=cmd,
                          control=0)
 
