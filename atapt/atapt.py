@@ -183,6 +183,10 @@ class atapt:
                 self.ata_status = int.from_bytes(
                     self.sense[21], byteorder='little')
 
+    def clearSense(self):
+        for i in range(64):
+            self.sense[i] = 0
+
     def prepareSgio(self, cmd, feature, count, lba, buf):
         if cmd in [ATA_IDENTIFY, ATA_READ_SECTORS, ATA_READ_SECTORS_EXT, ATA_SMART_COMMAND]:
             if buf is None:
@@ -248,6 +252,7 @@ class atapt:
     def devIdentify(self):
         buf = ctypes.c_buffer(512)
         sgio = self.prepareSgio(ATA_IDENTIFY, 0, 0, 0, buf)
+        self.clearSense()
         with open(self.dev, 'r') as fd:
             if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
                 raise sgioFalied("fcntl.ioctl falied")
@@ -283,6 +288,7 @@ class atapt:
     def readSectors(self, count, start):
         buf = ctypes.c_buffer(count * self.logicalSectorSize)
         sgio = self.prepareSgio(self.readCommand, 0, count, start, buf)
+        self.clearSense()
         with open(self.dev, 'r') as fd:
             if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
                 raise sgioFalied("fcntl.ioctl falied")
@@ -291,6 +297,7 @@ class atapt:
 
     def verifySectors(self, count, start):
         sgio = self.prepareSgio(self.verifyCommand, 0, count, start, None)
+        self.clearSense()
         with open(self.dev, 'r') as fd:
             if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
                 raise sgioFalied("fcntl.ioctl falied")
@@ -298,6 +305,7 @@ class atapt:
 
     def writeSectors(self, count, start, buf):
         sgio = self.prepareSgio(self.writeCommand, 0, count, start, buf)
+        self.clearSense()
         with open(self.dev, 'r') as fd:
             if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
                 raise sgioFalied("fcntl.ioctl falied")
@@ -306,6 +314,7 @@ class atapt:
     def readSmartValues(self):
         buf = ctypes.c_buffer(512)
         sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, buf)
+        self.clearSense()
         with open(self.dev, 'r') as fd:
             if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
                 raise sgioFalied("fcntl.ioctl falied")
@@ -315,6 +324,7 @@ class atapt:
     def readSmartThresholds(self):
         buf = ctypes.c_buffer(512)
         sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, buf)
+        self.clearSense()
         with open(self.dev, 'r') as fd:
             if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
                 raise sgioFalied("fcntl.ioctl falied")
