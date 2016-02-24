@@ -32,7 +32,7 @@ else:
 print("log. sector size:   %d bytes" % disk.logicalSectorSize)
 print("phys. sector size:  %d bytes" % disk.physicalSectorSize)
 
-
+disk.timeout = 1000
 # Read SMART
 print()
 print("Read SMART")

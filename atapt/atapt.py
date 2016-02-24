@@ -156,7 +156,8 @@ class atapt:
     def __init__(self, dev):
         self.smart = {}
         self.ssd = 0
-        self.duration = 0 
+        self.duration = 0
+        self.timeout = 1000
         self.readCommand = ATA_READ_SECTORS
         self.verifyCommand = ATA_READ_VERIFY_SECTORS
         self.writeCommand = ATA_WRITE_SECTORS
@@ -239,7 +240,7 @@ class atapt:
                        dxfer_len=buf_len,
                        dxferp=buf_p,
                        cmdp=ctypes.addressof(ata_cmd),
-                       sbp=ctypes.cast(self.sense, ctypes.c_void_p), timeout=1000,
+                       sbp=ctypes.cast(self.sense, ctypes.c_void_p), timeout=self.timeout,
                        flags=0, pack_id=0, usr_ptr=None, status=0, masked_status=0,
                        msg_status=0, sb_len_wr=0, host_status=0, driver_status=0,
                        resid=0, duration=0, info=0)
