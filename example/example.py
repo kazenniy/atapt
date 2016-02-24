@@ -49,7 +49,7 @@ for id in sorted(disk.smart):
                                                              "  %03d" % disk.smart[id][3],
                                                              "  %03d" % disk.smart[id][5], disk.getSmartRawStr(id)))
 print("ata status: 0x%02X    ata error: 0x%02X" % (disk.ata_status, disk.ata_error))
-
+print("duration: %f ms" % (disk.duration))
 
 # Verify sector(s)
 count = 1
@@ -57,6 +57,7 @@ print()
 print("Verify last sector")
 disk.verifySectors(count, disk.sectors - 1)
 print("ata status: 0x%02X    ata error: 0x%02X" % (disk.ata_status, disk.ata_error))
+print("duration: %f ms" % (disk.duration))
 
 
 # Read sector(s)
@@ -65,6 +66,7 @@ print()
 print("Read last sector")
 atapt.printBuf(disk.readSectors(count, disk.sectors - 1))
 print("ata status: 0x%02X    ata error: 0x%02X" % (disk.ata_status, disk.ata_error))
+print("duration: %f ms" % (disk.duration))
 
 
 # Write sector(s)
@@ -82,6 +84,7 @@ for i in range(disk.logicalSectorSize * count):
 atapt.printBuf(buf)
 disk.writeSectors(count, disk.sectors - 1, buf)
 print("ata status: 0x%02X    ata error: 0x%02X" % (disk.ata_status, disk.ata_error))
+print("duration: %f ms" % (disk.duration))
 
 
 # Read sector(s)
@@ -90,3 +93,5 @@ print()
 print("Read last sector")
 atapt.printBuf(disk.readSectors(count, disk.sectors - 1))
 print("ata status: 0x%02X    ata error: 0x%02X" % (disk.ata_status, disk.ata_error))
+print("duration: %f ms" % (disk.duration))
+

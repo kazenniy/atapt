@@ -4,6 +4,7 @@ import ctypes
 import fcntl
 import string
 import os
+import time
 
 # ATA Commands
 ATA_IDENTIFY = 0xEC
@@ -155,6 +156,7 @@ class atapt:
     def __init__(self, dev):
         self.smart = {}
         self.ssd = 0
+        self.duration = 0 
         self.readCommand = ATA_READ_SECTORS
         self.verifyCommand = ATA_READ_VERIFY_SECTORS
         self.writeCommand = ATA_WRITE_SECTORS
@@ -255,9 +257,11 @@ class atapt:
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
+                startTime = time.time()
                 fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
             except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
         self.checkSense()
         self.serial = swapString(buf[20:40])
         self.firmware = swapString(buf[46:53])
@@ -293,9 +297,11 @@ class atapt:
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
+                startTime = time.time()
                 fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
             except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
         self.checkSense()
         return buf
 
@@ -304,9 +310,11 @@ class atapt:
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
+                startTime = time.time()
                 fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
             except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
         self.checkSense()
 
     def writeSectors(self, count, start, buf):
@@ -314,9 +322,11 @@ class atapt:
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
+                startTime = time.time()
                 fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
             except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
         self.checkSense()
 
     def readSmartValues(self):
@@ -325,9 +335,11 @@ class atapt:
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
+                startTime = time.time()
                 fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
             except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
         self.checkSense()
         return buf
 
@@ -337,9 +349,11 @@ class atapt:
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
+                startTime = time.time()
                 fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
             except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
         self.checkSense()
         return buf
 
