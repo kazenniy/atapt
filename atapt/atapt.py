@@ -254,7 +254,9 @@ class atapt:
         sgio = self.prepareSgio(ATA_IDENTIFY, 0, 0, 0, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
-            if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
+            try:
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
         self.checkSense()
         self.serial = swapString(buf[20:40])
@@ -290,7 +292,9 @@ class atapt:
         sgio = self.prepareSgio(self.readCommand, 0, count, start, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
-            if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
+            try:
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
         self.checkSense()
         return buf
@@ -299,7 +303,9 @@ class atapt:
         sgio = self.prepareSgio(self.verifyCommand, 0, count, start, None)
         self.clearSense()
         with open(self.dev, 'r') as fd:
-            if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
+            try:
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
         self.checkSense()
 
@@ -307,7 +313,9 @@ class atapt:
         sgio = self.prepareSgio(self.writeCommand, 0, count, start, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
-            if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
+            try:
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
         self.checkSense()
 
@@ -316,7 +324,9 @@ class atapt:
         sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
-            if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
+            try:
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
         self.checkSense()
         return buf
@@ -326,7 +336,9 @@ class atapt:
         sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
-            if fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio)) != 0:
+            try:
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
                 raise sgioFalied("fcntl.ioctl falied")
         self.checkSense()
         return buf
