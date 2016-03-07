@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
     name = 'atapt',
     packages = ['atapt'],
-    version = '0.1',
+    version = '0.2',
     description = 'ATA Pass-Through library',
     author = 'Seregy Kazenniy',
     author_email = 'kazenniy@gmail.com',
