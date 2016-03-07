@@ -7,6 +7,7 @@ setup(
     author = 'Seregy Kazenniy',
     author_email = 'kazenniy@gmail.com',
     url = 'https://github.com/kazenniy/atapt',
+    download_url = 'https://github.com/kazenniy/atapt/tarball/master',
     keywords = ['ata', 'sgio', 'hdd', 'ssd', 'smart'],
     license='MIT',
     classifiers = [
