@@ -23,6 +23,8 @@ print("Firmware:           " + disk.firmware)
 print("Serial:             " + disk.serial)
 print("Sectors:            %d" % disk.sectors)
 print("Size:               %d Gb" % disk.size)
+if disk.formFactor != "":
+    print("Form factor:        %s inch" % disk.formFactor)
 if disk.ssd:
     print("Type:               SSD")
 else:

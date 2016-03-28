@@ -279,7 +279,24 @@ class atapt:
         if self.rpm == 1:
             self.ssd = 1
 
-        # word 106 bit 12 "Device Logical Sector longer than 256 Words"
+        # word 168 bits 0-3 "Device form factor"
+        fFactor = int.from_bytes(buf[336] + buf[337], byteorder='little') & 0xF
+        if fFactor == 0:
+            self.formFactor = ""
+        elif fFactor == 1:
+            self.formFactor = "5.25"
+        elif fFactor == 2:
+            self.formFactor = "3.5"
+        elif fFactor == 3:
+            self.formFactor = "2.5"
+        elif fFactor == 4:
+            self.formFactor = "1.8"
+        elif fFactor == 5:
+            self.formFactor = "less than 1.8"
+        elif fFactor > 5:
+            self.formFactor = ""
+
+         # word 106 bit 12 "Device Logical Sector longer than 256 Words"
         if not int.from_bytes(buf[212] + buf[213], byteorder='little') & 0x1000:
             self.logicalSectorSize = 512
         else:
