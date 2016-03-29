@@ -33,6 +33,7 @@ else:
         print("RPM:                %d" % disk.rpm)
 print("log. sector size:   %d bytes" % disk.logicalSectorSize)
 print("phys. sector size:  %d bytes" % disk.physicalSectorSize)
+print("ATA Version:        %s %s" % (disk.ataMajor, disk.ataMinor))
 
 disk.timeout = 1000
 # Read SMART

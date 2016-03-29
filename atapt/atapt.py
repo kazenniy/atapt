@@ -309,6 +309,87 @@ class atapt:
             self.physicalSectorSize = (1 << (int.from_bytes(
                 buf[212] + buf[213], byteorder='little') & 0x0F)) * self.logicalSectorSize
 
+        # word 80 "ATA Major version number"
+        major = int.from_bytes(buf[160] + buf[161], byteorder='little')
+        if major & 0x800:
+            self.ataMajor = "ACS-4"
+        elif major & 0x400:
+            self.ataMajor = "ACS-3"
+        elif major & 0x200:
+            self.ataMajor = "ACS-2"
+        elif major & 0x100:
+            self.ataMajor = "ATA8-ACS"
+        elif major & 0x80:
+            self.ataMajor = "ATA/ATAPI-7"
+        elif major & 0x40:
+            self.ataMajor = "ATA/ATAPI-6"
+        elif major & 0x20:
+            self.ataMajor = "ATA/ATAPI-5"
+        else:
+            self.ataMajor = ""
+
+        # word 81 "ATA Minor version number"
+        minor = int.from_bytes(buf[162] + buf[163], byteorder='little')
+        if minor == 0x13:
+            self.ataMinor = "T13 1321D version 3"
+        elif minor == 0x15:
+            self.ataMinor = "T13 1321D version 1"
+        elif minor == 0x16:
+            self.ataMinor = "published, ANSI INCITS 340-2000"
+        elif minor == 0x18:
+            self.ataMinor = "T13 1410D version 0"
+        elif minor == 0x19:
+            self.ataMinor = "T13 1410D version 3a"
+        elif minor == 0x1A:
+            self.ataMinor = "T13 1532D version 1"
+        elif minor == 0x1B:
+            self.ataMinor = "T13 1410D version 2"
+        elif minor == 0x1C:
+            self.ataMinor = "T13 1410D version 1"
+        elif minor == 0x1D:
+            self.ataMinor = "published, ANSI INCITS 397-2005"
+        elif minor == 0x1E:
+            self.ataMinor = "T13 1532D version 0"
+        elif minor == 0x1F:
+            self.ataMinor = "T13/2161-D version 3b"
+        elif minor == 0x21:
+            self.ataMinor = "T13 1532D version 4a"
+        elif minor == 0x22:
+            self.ataMinor = "published, ANSI INCITS 361-2002"
+        elif minor == 0x27:
+            self.ataMinor = "T13/1699-D version 3c"
+        elif minor == 0x28:
+            self.ataMinor = "T13/1699-D version 6"
+        elif minor == 0x29:
+            self.ataMinor = "T13/1699-D version 4"
+        elif minor == 0x31:
+            self.ataMinor = "T13/2015-D Revision 2"
+        elif minor == 0x33:
+            self.ataMinor = "T13/1699-D version 3e"
+        elif minor == 0x39:
+            self.ataMinor = "T13/1699-D version 4c"
+        elif minor == 0x42:
+            self.ataMinor = "T13/1699-D version 3f"
+        elif minor == 0x52:
+            self.ataMinor = "T13/1699-D version 3b"
+        elif minor == 0x5E:
+            self.ataMinor = "T13/BSR INCITS 529 revision 5"
+        elif minor == 0x6D:
+            self.ataMinor = "T13/2161-D revision 5"
+        elif minor == 0x82:
+            self.ataMinor = "published, ANSI INCITS 482-2012"
+        elif minor == 0x107:
+            self.ataMinor = "T13/1699-D version 2a"
+        elif minor == 0x10A:
+            self.ataMinor = "published, ANSI INCITS 522-2014"
+        elif minor == 0x110:
+            self.ataMinor = "T13/2015-D Revision 3"
+        elif minor == 0x11b:
+            self.ataMinor = "T13/2015-D Revision 4"
+        else:
+            self.ataMinor = ""
+
+
     def readSectors(self, count, start):
         buf = ctypes.c_buffer(count * self.logicalSectorSize)
         sgio = self.prepareSgio(self.readCommand, 0, count, start, buf)
