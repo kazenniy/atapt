@@ -389,6 +389,36 @@ class atapt:
         else:
             self.ataMinor = ""
 
+        # word 222 "Transport major version number"
+        major = int.from_bytes(buf[444] + buf[445], byteorder='little')
+        if major & 0x40:
+            self.transport = "SATA 3.1"
+        elif major & 0x20:
+            self.transport = "SATA 3.0"
+        elif major & 0x10:
+            self.transport = "SATA 2.6"
+        elif major & 0x8:
+            self.transport = "SATA 2.5"
+        elif major & 0x4:
+            self.transport = "SATA II Extensions"
+        elif major & 0x2:
+            self.transport = "SATA 1.0a"
+        elif major & 0x1:
+            self.transport = "ATA8-AST"
+        else:
+            self.transport = ""
+
+        # word 76 "Serial ATA capabilities"
+        cap = int.from_bytes(buf[152] + buf[153], byteorder='little')
+        if cap & 0x800:
+            self.sataGen = "Gen.3 (6.0Gb/s)"
+        elif cap & 0x400:
+            self.sataGen = "Gen.2 (3.0Gb/s)"
+        elif cap & 0x200:
+            self.sataGen = "Gen.1 (1.5Gb/s)"
+        else:
+            self.sataGen = ""
+ 
 
     def readSectors(self, count, start):
         buf = ctypes.c_buffer(count * self.logicalSectorSize)

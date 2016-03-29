@@ -34,6 +34,7 @@ else:
 print("log. sector size:   %d bytes" % disk.logicalSectorSize)
 print("phys. sector size:  %d bytes" % disk.physicalSectorSize)
 print("ATA Version:        %s %s" % (disk.ataMajor, disk.ataMinor))
+print("Transport:          %s %s" % (disk.transport, disk.sataGen))
 
 disk.timeout = 1000
 # Read SMART
