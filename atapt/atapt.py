@@ -295,11 +295,9 @@ class atapt:
         if not int.from_bytes(buf[212] + buf[213], byteorder='little') & 0x1000:
             self.logicalSectorSize = 512
         else:
-            self.logicalSectorSize = int.from_bytes(
-                buf[234] + buf[235] + buf[236] + buf[237], byteorder='little')
+            self.logicalSectorSize = int.from_bytes(buf[234] + buf[235] + buf[236] + buf[237], byteorder='little')
 
-        # word 106 bit 13 "Device has multiple logical sectors per physical
-        # sector"
+        # word 106 bit 13 "Device has multiple logical sectors per physical sector"
         if not int.from_bytes(buf[212] + buf[213], byteorder='little') & 0x2000:
             self.physicalSectorSize = self.logicalSectorSize
         else:
@@ -468,8 +466,7 @@ class atapt:
 
     def readSmartValues(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(
-            ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, buf)
+        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -483,8 +480,7 @@ class atapt:
 
     def readSmartThresholds(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(
-            ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, buf)
+        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -503,10 +499,8 @@ class atapt:
             if buf[2 + i * 12] == b'\x00':
                 continue
             aid = int.from_bytes(buf[2 + i * 12], byteorder='little')
-            pre_fail = int.from_bytes(
-                buf[2 + i * 12 + 1], byteorder='little') & 1
-            online = (int.from_bytes(
-                buf[2 + i * 12 + 1], byteorder='little') & 2) >> 1
+            pre_fail = int.from_bytes(buf[2 + i * 12 + 1], byteorder='little') & 1
+            online = (int.from_bytes(buf[2 + i * 12 + 1], byteorder='little') & 2) >> 1
             current = int.from_bytes(buf[2 + i * 12 + 3], byteorder='little')
             if current == 0 or current == 0xfe or current == 0xff:
                 continue
@@ -520,8 +514,7 @@ class atapt:
                 continue
             aid = int.from_bytes(buf[2 + i * 12], byteorder='little')
             if aid in self.smart:
-                self.smart[aid].append(int.from_bytes(
-                    buf[2 + i * 12 + 1], byteorder='little'))
+                self.smart[aid].append(int.from_bytes(buf[2 + i * 12 + 1], byteorder='little'))
 
     def getSmartStr(self, id):
         if id == 1:
