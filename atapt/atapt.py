@@ -416,7 +416,7 @@ class atapt:
 
         # word 83 "Commands and feature sets supported"
         features = int.from_bytes(buf[166] + buf[167], byteorder='little')
-        if major & 0x400:
+        if features & 0x400:
             self.lba48bit = True
         else:
             self.lba48bit = False
