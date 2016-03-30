@@ -230,7 +230,7 @@ class atapt:
                          lba_h_low=sector_lba[3], lba_low=sector_lba[0],
                          lba_h_mid=sector_lba[4], lba_mid=sector_lba[1],
                          lba_h_high=sector_lba[5], lba_high=sector_lba[2],
-                         device=1 << 6, # Enable LBA on ATA-5 and older drives
+                         device=1 << 6,  # Enable LBA on ATA-5 and older drives
                          command=cmd,
                          control=0)
 
@@ -269,11 +269,6 @@ class atapt:
         self.model = swapString(buf[54:93])
         self.sectors = int.from_bytes(buf[200] + buf[201] + buf[202] + buf[203] +
                                       buf[204] + buf[205] + buf[206] + buf[207], byteorder='little')
-        if self.sectors > 268435456:
-            self.readCommand = ATA_READ_SECTORS_EXT
-            self.verifyCommand = ATA_READ_VERIFY_SECTORS_EXT
-            self.writeCommand = ATA_WRITE_SECTORS_EXT
-
         self.size = self.sectors / 2097152
         self.rpm = int.from_bytes(buf[434] + buf[435], byteorder='little')
         if self.rpm == 1:
@@ -300,9 +295,11 @@ class atapt:
         if not int.from_bytes(buf[212] + buf[213], byteorder='little') & 0x1000:
             self.logicalSectorSize = 512
         else:
-            self.logicalSectorSize = int.from_bytes(buf[234] + buf[235] + buf[236] + buf[237], byteorder='little')
+            self.logicalSectorSize = int.from_bytes(
+                buf[234] + buf[235] + buf[236] + buf[237], byteorder='little')
 
-        # word 106 bit 13 "Device has multiple logical sectors per physical sector"
+        # word 106 bit 13 "Device has multiple logical sectors per physical
+        # sector"
         if not int.from_bytes(buf[212] + buf[213], byteorder='little') & 0x2000:
             self.physicalSectorSize = self.logicalSectorSize
         else:
@@ -418,7 +415,18 @@ class atapt:
             self.sataGen = "Gen.1 (1.5Gb/s)"
         else:
             self.sataGen = ""
- 
+
+        # word 83 "Commands and feature sets supported"
+        features = int.from_bytes(buf[166] + buf[167], byteorder='little')
+        if major & 0x400:
+            self.lba48bit = True
+        else:
+            self.lba48bit = False
+
+        if self.lba48bit:
+            self.readCommand = ATA_READ_SECTORS_EXT
+            self.verifyCommand = ATA_READ_VERIFY_SECTORS_EXT
+            self.writeCommand = ATA_WRITE_SECTORS_EXT
 
     def readSectors(self, count, start):
         buf = ctypes.c_buffer(count * self.logicalSectorSize)
@@ -460,7 +468,8 @@ class atapt:
 
     def readSmartValues(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, buf)
+        sgio = self.prepareSgio(
+            ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -474,7 +483,8 @@ class atapt:
 
     def readSmartThresholds(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, buf)
+        sgio = self.prepareSgio(
+            ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -493,8 +503,10 @@ class atapt:
             if buf[2 + i * 12] == b'\x00':
                 continue
             aid = int.from_bytes(buf[2 + i * 12], byteorder='little')
-            pre_fail = int.from_bytes(buf[2 + i * 12 + 1], byteorder='little') & 1
-            online = (int.from_bytes(buf[2 + i * 12 + 1], byteorder='little') & 2) >> 1
+            pre_fail = int.from_bytes(
+                buf[2 + i * 12 + 1], byteorder='little') & 1
+            online = (int.from_bytes(
+                buf[2 + i * 12 + 1], byteorder='little') & 2) >> 1
             current = int.from_bytes(buf[2 + i * 12 + 3], byteorder='little')
             if current == 0 or current == 0xfe or current == 0xff:
                 continue
@@ -508,7 +520,8 @@ class atapt:
                 continue
             aid = int.from_bytes(buf[2 + i * 12], byteorder='little')
             if aid in self.smart:
-                self.smart[aid].append(int.from_bytes(buf[2 + i * 12 + 1], byteorder='little'))
+                self.smart[aid].append(int.from_bytes(
+                    buf[2 + i * 12 + 1], byteorder='little'))
 
     def getSmartStr(self, id):
         if id == 1:
