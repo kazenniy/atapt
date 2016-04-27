@@ -190,28 +190,24 @@ class atapt:
         for i in range(64):
             self.sense[i] = 0
 
-    def prepareSgio(self, cmd, feature, count, lba, buf):
-        if cmd in [ATA_IDENTIFY, ATA_READ_SECTORS, ATA_READ_SECTORS_EXT, ATA_SMART_COMMAND]:
+    def prepareSgio(self, cmd, feature, count, lba, direction, buf):
+        if direction in [SG_DXFER_FROM_DEV, SG_DXFER_TO_DEV]:
             if buf is None:
                 raise sgioFalied("Got None instead buffer")
-            direction = SG_DXFER_FROM_DEV
             buf_len = ctypes.sizeof(buf)
             buf_p = ctypes.cast(buf, ctypes.c_void_p)
-            prot = 4 << 1  # PIO Data-In
-        elif cmd in [ATA_WRITE_SECTORS, ATA_WRITE_SECTORS_EXT]:
-            if buf is None:
-                raise sgioFalied("Got None instead buffer")
-            direction = SG_DXFER_TO_DEV
-            buf_len = ctypes.sizeof(buf)
-            buf_p = ctypes.cast(buf, ctypes.c_void_p)
-            prot = 5 << 1  # PIO Data-Out
-        elif cmd in [ATA_READ_VERIFY_SECTORS, ATA_READ_VERIFY_SECTORS_EXT]:
-            direction = SG_DXFER_NONE
+            if direction == SG_DXFER_FROM_DEV:
+                prot = 4 << 1  # PIO Data-In
+            if direction == SG_DXFER_TO_DEV:
+                prot = 5 << 1  # PIO Data-Out
+        elif direction == SG_DXFER_NONE:
             buf_len = 0
             buf_p = None
             prot = 3 << 1  # Non-data
         else:
-            raise sgioFalied("Unknown ATA command : 0x%0.2X" % cmd)
+            raise sgioFalied("Unknown direction : 0x%0.2X" % direction)
+
+        # raise sgioFalied("Unknown ATA command : 0x%0.2X" % cmd)
         if cmd in [ATA_READ_SECTORS_EXT, ATA_WRITE_SECTORS_EXT, ATA_READ_VERIFY_SECTORS_EXT]:
             prot = prot | 1  # + EXTEND
         sector_lba = lba.to_bytes(6, byteorder='little')
@@ -254,7 +250,7 @@ class atapt:
 
     def devIdentify(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_IDENTIFY, 0, 0, 0, buf)
+        sgio = self.prepareSgio(ATA_IDENTIFY, 0, 0, 0, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -428,7 +424,7 @@ class atapt:
 
     def readSectors(self, count, start):
         buf = ctypes.c_buffer(count * self.logicalSectorSize)
-        sgio = self.prepareSgio(self.readCommand, 0, count, start, buf)
+        sgio = self.prepareSgio(self.readCommand, 0, count, start, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -441,7 +437,7 @@ class atapt:
         return buf
 
     def verifySectors(self, count, start):
-        sgio = self.prepareSgio(self.verifyCommand, 0, count, start, None)
+        sgio = self.prepareSgio(self.verifyCommand, 0, count, start, SG_DXFER_NONE, None)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -453,7 +449,7 @@ class atapt:
         self.checkSense()
 
     def writeSectors(self, count, start, buf):
-        sgio = self.prepareSgio(self.writeCommand, 0, count, start, buf)
+        sgio = self.prepareSgio(self.writeCommand, 0, count, start, SG_DXFER_TO_DEV, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -466,7 +462,7 @@ class atapt:
 
     def readSmartValues(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, buf)
+        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
@@ -480,7 +476,7 @@ class atapt:
 
     def readSmartThresholds(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, buf)
+        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
         with open(self.dev, 'r') as fd:
             try:
