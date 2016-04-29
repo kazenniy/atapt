@@ -17,8 +17,12 @@ ATA_WRITE_SECTORS_EXT = 0x34
 ATA_SMART_COMMAND = 0xB0
 SMART_READ_VALUES = 0xD0
 SMART_READ_THRESHOLDS = 0xD1
+SMART_RETURN_STATUS = 0xDA
+SMART_READ_LOG = 0xD5
+SMART_EXECUTE_OFFLINE_IMMEDIATE = 0xD4
 
 SMART_LBA = 0xC24F00
+SMART_BAD_STATUS = 0x2CF4
 
 # scsi/sg.h
 SG_DXFER_NONE = -1          # SCSI Test Unit Ready command
@@ -489,7 +493,9 @@ class atapt:
         return buf
 
     def readSmart(self):
+        buf = ctypes.c_buffer(512)
         buf = self.readSmartValues()
+        self.selftestStatus = int.from_bytes(buf[363], byteorder='little')
         self.smart = {}
         for i in range(30):
             if buf[2 + i * 12] == b'\x00':
@@ -740,3 +746,100 @@ class atapt:
             return str(self.smart[id][4] & 0xFF)
         else:
             return str(self.smart[id][4])
+
+    def readSmartStatus(self):
+        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_RETURN_STATUS, 1, SMART_LBA, SG_DXFER_NONE, None)
+        self.clearSense()
+        with open(self.dev, 'r') as fd:
+            try:
+                startTime = time.time()
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
+        self.checkSense()
+        status = int.from_bytes(self.sense[17] + self.sense[19], byteorder='little')
+        return status
+
+    def readSmartLog(self, logAddress):
+        buf = ctypes.c_buffer(512)
+        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_LOG, 1, SMART_LBA + logAddress, SG_DXFER_FROM_DEV, buf)
+        self.clearSense()
+        with open(self.dev, 'r') as fd:
+            try:
+                startTime = time.time()
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
+        self.checkSense()
+        return buf
+
+    def runSmartSelftest(self, subcommand):
+        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_EXECUTE_OFFLINE_IMMEDIATE, 1, SMART_LBA + subcommand, SG_DXFER_NONE, None)
+        self.clearSense()
+        with open(self.dev, 'r') as fd:
+            try:
+                startTime = time.time()
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
+        self.checkSense()
+
+    def getSelftestLog(self):
+        buf = ctypes.c_buffer(512)
+        buf = self.readSmartLog(6)
+        log = []
+        revision = int.from_bytes(buf[0] + buf[1], byteorder='little')
+        for i in range(2, 485, 24):
+            if buf[i] == b'\x00':
+                continue
+            if buf[i] == b'\x01':
+                test = "Short offline"
+            elif buf[i] == b'\x02':
+                test = "Extended offline"
+            elif buf[i] == b'\x03':
+                test = "Conveyance offline"
+            elif buf[i] == b'\x04':
+                test = "Selective offline"
+            elif buf[i] == b'\x81':
+                test = "Short captive"
+            elif buf[i] == b'\x82':
+                test = "Extended captive"
+            elif buf[i] == b'\x83':
+                test = "Conveyance captive"
+            elif buf[i] == b'\x84':
+                test = "Selective captive"
+
+            st = int.from_bytes(buf[i + 1], byteorder='little') >> 4
+            if st == 0:
+                status = "completed"
+            elif st == 1:
+                status = "aborted by host"
+            elif st == 4:
+                status = "interrupted by reset"
+            elif st == 3:
+                status = "fatal error"
+            elif st == 2:
+                status = "unknoun failure"
+            elif st == 5:
+                status = "electrical failure"
+            elif st == 6:
+                status = "servo failure"
+            elif st == 7:
+                status = "read failure"
+            elif st == 8:
+                status = "handling damage"
+            elif st == 0x0F:
+                status = "in progress"
+
+            remaining = int((int.from_bytes(buf[i + 1], byteorder='little') & 0x0F) * 10)
+            if remaining == 100:
+                remaining = 0
+
+            lifetime = int.from_bytes(buf[i + 2] + buf[i + 3], byteorder='little')
+            lba = int.from_bytes(buf[i + 5] + buf[i + 6] + buf[i + 7] + buf[i + 8], byteorder='little')
+            log.append((test, status, remaining, lifetime, lba))
+        return ((revision, log))
+

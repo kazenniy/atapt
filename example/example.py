@@ -45,6 +45,8 @@ print()
 print("SMART VALUES:")
 print("ID# ATTRIBUTE NAME             TYPE     UPDATED   VALUE  WORST  THRESH  RAW")
 for id in sorted(disk.smart):
+    if disk.smart[id][3] < disk.smart[id][5]:
+        print("\033[91m", end="")
     # [pre_fail, online, current, worst, raw, treshold]
     print("{:>3} {:<24} {:10} {:7}  {}  {}  {}    {}".format(id, disk.getSmartStr(id),
                                                              "Pre-fail" if disk.smart[id][0] else "Old_age",
@@ -52,8 +54,36 @@ for id in sorted(disk.smart):
                                                              "  %03d" % disk.smart[id][2],
                                                              "  %03d" % disk.smart[id][3],
                                                              "  %03d" % disk.smart[id][5], disk.getSmartRawStr(id)))
+    print("\033[0m", end="")
+if disk.readSmartStatus() == atapt.SMART_BAD_STATUS:
+    print("\033[91mSMART STATUS BAD!\033[0m")
 print("ata status: 0x%02X    ata error: 0x%02X" % (disk.ata_status, disk.ata_error))
 print("duration: %f ms" % (disk.duration))
+
+
+# Run SMART Self-test
+# disk.runSmartSelftest(2)  # Execute SMART Extended self-test routine immediately in off-line mode
+
+
+# Read SMART Self-test log
+print()
+print("SMART Self-test status: 0x%02X" % disk.selftestStatus)
+log = disk.getSelftestLog()
+print("SMART Self-test log structure revision number %d" % log[0])
+print("Test                Status                  Remaining  LifeTime(hours)  LBA of first error")
+for i in log[1]:
+    print("{:<20}".format(i[0]), end="")
+    print("{:<25}".format(i[1]), end="")
+    print("{:^9}".format(str(i[2]) + "%"), end="")
+    print("{:^15}".format(i[3]), end="")
+    if i[1] == "in progress":
+        print("{:^25}".format("-"), end="")
+    else:
+        print("{:^25}".format(i[4]), end="")
+    print()
+print("ata status: 0x%02X    ata error: 0x%02X" % (disk.ata_status, disk.ata_error))
+print("duration: %f ms" % (disk.duration))
+
 
 # Verify sector(s)
 count = 1
