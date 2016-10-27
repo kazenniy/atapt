@@ -24,6 +24,13 @@ SMART_EXECUTE_OFFLINE_IMMEDIATE = 0xD4
 SMART_LBA = 0xC24F00
 SMART_BAD_STATUS = 0x2CF4
 
+SECURITY_SET_PASSWORD = 0xF1
+SECURITY_UNLOCK = 0xF2
+SECURITY_ERASE_PREPARE = 0xF3
+SECURITY_ERASE_UNIT = 0xF4
+SECURITY_FREEZE_LOCK = 0xF5
+SECURITY_DISABLE_PASSWORD = 0xF6
+
 # scsi/sg.h
 SG_DXFER_NONE = -1          # SCSI Test Unit Ready command
 SG_DXFER_TO_DEV = -2        # SCSI WRITE command
@@ -122,6 +129,15 @@ class senseError(ataptError):
         ataptError.__init__(self, "Sense check error! reason: " + error)
 
 
+class securityError(ataptError):
+    """
+    Raised on security command error
+    """
+
+    def __init__(self):
+        ataptError.__init__(self, "Security command error!")
+
+
 def swap16(x):
     return ((x << 8) & 0xFF00) | ((x >> 8) & 0x00FF)
 
@@ -161,7 +177,7 @@ class atapt:
         self.smart = {}
         self.ssd = 0
         self.duration = 0
-        self.timeout = 1000
+        self.timeout = 1000  # in milliseconds
         self.readCommand = ATA_READ_SECTORS
         self.verifyCommand = ATA_READ_VERIFY_SECTORS
         self.writeCommand = ATA_WRITE_SECTORS
@@ -425,6 +441,46 @@ class atapt:
             self.readCommand = ATA_READ_SECTORS_EXT
             self.verifyCommand = ATA_READ_VERIFY_SECTORS_EXT
             self.writeCommand = ATA_WRITE_SECTORS_EXT
+
+        # word 82 "Commands and feature sets supported"
+        features = int.from_bytes(buf[164] + buf[165], byteorder='little')
+        if features & 0x2:
+            self.security = True
+            # word 89 "Time required for a Normal Erase mode"
+            self.normalEraseTimeout = int.from_bytes(buf[178] + buf[179], byteorder='little') * 2
+        else:
+            self.security = False
+
+        if self.security:
+            securityStatus = int.from_bytes(buf[256] + buf[257], byteorder='little')
+            if securityStatus & 0x2:
+                self.securityEnabled = True
+            else:
+                self.securityEnabled = False
+
+            if securityStatus & 0x4:
+                self.securityLocked = True
+            else:
+                self.securityLocked = False
+
+            if securityStatus & 0x8:
+                self.securityFrozen = True
+            else:
+                self.securityFrozen = False
+
+            if securityStatus & 0x10:
+                self.securityExpired = True
+            else:
+                self.securityExpired = False
+
+            if securityStatus & 0x20:
+                self.securityEnhancedErase = True
+                # word 90 "Time required for a Enhanced Erase mode"
+                self.enhancedEraseTimeout = int.from_bytes(buf[178] + buf[179], byteorder='little') * 2
+            else:
+                self.securityEnhancedErase = False
+
+            self.securityMasterPwdCap = securityStatus & 0x100
 
     def readSectors(self, count, start):
         buf = ctypes.c_buffer(count * self.logicalSectorSize)
@@ -842,4 +898,140 @@ class atapt:
             lba = int.from_bytes(buf[i + 5] + buf[i + 6] + buf[i + 7] + buf[i + 8], byteorder='little')
             log.append((test, status, remaining, lifetime, lba))
         return ((revision, log))
+
+    def securityDisable(self, master, password):
+        buf = ctypes.c_buffer(512)
+        if master:
+            buf[0] = 1
+        else:
+            buf[0] = 0
+        pwd = str.encode(password)
+        i = 2
+        for b in pwd:
+            buf[i] = b
+            i = i + 1
+        sgio = self.prepareSgio(SECURITY_DISABLE_PASSWORD, 0, 0, 0, SG_DXFER_TO_DEV, buf)
+        self.clearSense()
+        with open(self.dev, 'r') as fd:
+            try:
+                startTime = time.time()
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
+        try:
+            self.checkSense()
+        except senseError:
+            raise securityError()
+
+    def securityUnlock(self, master, password):
+        buf = ctypes.c_buffer(512)
+        if master:
+            buf[0] = 1
+        else:
+            buf[0] = 0
+        pwd = str.encode(password)
+        i = 2
+        for b in pwd:
+            buf[i] = b
+            i = i + 1
+        sgio = self.prepareSgio(SECURITY_UNLOCK, 0, 0, 0, SG_DXFER_TO_DEV, buf)
+        self.clearSense()
+        with open(self.dev, 'r') as fd:
+            try:
+                startTime = time.time()
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
+        try:
+            self.checkSense()
+        except senseError:
+            raise securityError()
+
+    def securityFreeze(self):
+        sgio = self.prepareSgio(SECURITY_FREEZE_LOCK, 0, 0, 0, SG_DXFER_NONE, None)
+        self.clearSense()
+        with open(self.dev, 'r') as fd:
+            try:
+                startTime = time.time()
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
+        try:
+            self.checkSense()
+        except senseError:
+            raise securityError()
+
+    def securityEraseUnit(self, master, enhanced, password):
+        buf = ctypes.c_buffer(512)
+        if master:
+            buf[0] = 1
+        else:
+            buf[0] = 0
+        if enhanced:
+            buf[0] = buf[0] + 2
+        pwd = str.encode(password)
+        i = 2
+        for b in pwd:
+            buf[i] = b
+            i = i + 1
+        sgio = self.prepareSgio(SECURITY_ERASE_PREPARE, 0, 0, 0, SG_DXFER_NONE, None)
+        with open(self.dev, 'r') as fd:
+            try:
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        tempTimeout = self.timeout
+        if enhanced:
+            self.timeout = self.enhancedEraseTimeout
+        else:
+            self.timeout = self.normalEraseTimeout
+        if self.timeout == 0 or self.timeout == 510:
+            self.timeout = 12 * 60 * 60 * 1000  # default timeout twelve hours
+        else:
+            self.timeout = (self.timeout + 30) * 60 * 1000  # +30min then convert to milliseconds
+        sgio = self.prepareSgio(SECURITY_ERASE_UNIT, 0, 0, 0, SG_DXFER_TO_DEV, buf)
+        self.clearSense()
+        with open(self.dev, 'r') as fd:
+            try:
+                startTime = time.time()
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        self.timeout = tempTimeout
+        self.duration = (time.time() - startTime) * 1000
+        try:
+            self.checkSense()
+        except senseError:
+            raise securityError()
+
+    def securitySetPassword(self, master, capability, password):
+        buf = ctypes.c_buffer(512)
+        if master:
+            buf[0] = 1
+        else:
+            buf[0] = 0
+        if capability:
+            buf[1] = 1
+        pwd = str.encode(password)
+        i = 2
+        for b in pwd:
+            buf[i] = b
+            i = i + 1
+        sgio = self.prepareSgio(SECURITY_SET_PASSWORD, 0, 0, 0, SG_DXFER_TO_DEV, buf)
+        self.clearSense()
+        with open(self.dev, 'r') as fd:
+            try:
+                startTime = time.time()
+                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
+            except IOError:
+                raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
+        try:
+            self.checkSense()
+        except senseError:
+            raise securityError()
+
 

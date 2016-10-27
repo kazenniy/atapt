@@ -36,6 +36,28 @@ print("phys. sector size:  %d bytes" % disk.physicalSectorSize)
 print("ATA Version:        %s %s" % (disk.ataMajor, disk.ataMinor))
 print("Transport:          %s %s" % (disk.transport, disk.sataGen))
 
+print()
+if disk.security:
+    print("Security feature supported")
+    if disk.securityMasterPwdCap:
+        print("Security mode: Maximum")
+    else:
+        print("Security mode: High")
+    if disk.normalEraseTimeout:
+        print("Time for SECURITY ERASE UNIT:", disk.normalEraseTimeout, "min")
+    if disk.securityEnhancedErase:
+        print("Echanced security erase supported")
+        if disk.enhancedEraseTimeout:
+            print("Time for ENHANCED SECURITY ERASE UNIT:", disk.enhancedEraseTimeout, "min")
+    if disk.securityEnabled:
+        print ("Security enabled")
+    if disk.securityLocked:
+        print("Security locked")
+    if disk.securityFrozen:
+        print("Security frozen")
+    if disk.securityExpired:
+        print("Security count expired")
+
 disk.timeout = 1000
 # Read SMART
 print()
@@ -129,3 +151,14 @@ atapt.printBuf(disk.readSectors(count, disk.sectors - 1))
 print("ata status: 0x%02X    ata error: 0x%02X" % (disk.ata_status, disk.ata_error))
 print("duration: %f ms" % (disk.duration))
 
+# Security features
+
+# master = 0      # 0 - use User password; 1 - use Master password
+# capability = 0  # 0 - High; 1 - Maximum
+# enhanced = 0    # 0 - SECURITY ERASE UNIT; 1 - ENHANCED SECURITY ERASE UNIT
+
+# disk.securitySetPassword(master, capability, "passw0rd")  # Set security password, enable security mode
+# disk.securityUnlock(master, "passw0rd")                   # Unlock disk with password
+# disk.securityDisable(master, "passw0rd")                  # Disable security mode
+# disk.securityFreeze()                                     # Set disk to Frozen mode
+# disk.securityEraseUnit(master, enhanced, "passw0rd")      # Erase disk data, disable security mode
