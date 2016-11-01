@@ -292,20 +292,13 @@ class atapt:
 
         # word 168 bits 0-3 "Device form factor"
         fFactor = int.from_bytes(buf[336] + buf[337], byteorder='little') & 0xF
-        if fFactor == 0:
-            self.formFactor = ""
-        elif fFactor == 1:
-            self.formFactor = "5.25"
-        elif fFactor == 2:
-            self.formFactor = "3.5"
-        elif fFactor == 3:
-            self.formFactor = "2.5"
-        elif fFactor == 4:
-            self.formFactor = "1.8"
-        elif fFactor == 5:
-            self.formFactor = "less than 1.8"
-        elif fFactor > 5:
-            self.formFactor = ""
+        self.formFactor = {
+                1: "5.25",
+                2: "3.5",
+                3: "2.5",
+                4: "1.8",
+                5: "less than 1.8"
+        }.get(fFactor, "")
 
          # word 106 bit 12 "Device Logical Sector longer than 256 Words"
         if not int.from_bytes(buf[212] + buf[213], byteorder='little') & 0x1000:
@@ -321,114 +314,68 @@ class atapt:
                 buf[212] + buf[213], byteorder='little') & 0x0F)) * self.logicalSectorSize
 
         # word 80 "ATA Major version number"
-        major = int.from_bytes(buf[160] + buf[161], byteorder='little')
-        if major & 0x800:
-            self.ataMajor = "ACS-4"
-        elif major & 0x400:
-            self.ataMajor = "ACS-3"
-        elif major & 0x200:
-            self.ataMajor = "ACS-2"
-        elif major & 0x100:
-            self.ataMajor = "ATA8-ACS"
-        elif major & 0x80:
-            self.ataMajor = "ATA/ATAPI-7"
-        elif major & 0x40:
-            self.ataMajor = "ATA/ATAPI-6"
-        elif major & 0x20:
-            self.ataMajor = "ATA/ATAPI-5"
-        else:
-            self.ataMajor = ""
+        major = int.from_bytes(buf[160] + buf[161], byteorder='little') & 0xFE0
+        self.ataMajor = {
+                0xFE0: "ACS-4",
+                0x7E0: "ACS-3",
+                0x3E0: "ACS-2",
+                0x1E0: "ATA8-ACS",
+                0x0E0: "ATA/ATAPI-7",
+                0x060: "ATA/ATAPI-6",
+                0x020: "ATA/ATAPI-5"
+        }.get(major, "")
 
         # word 81 "ATA Minor version number"
         minor = int.from_bytes(buf[162] + buf[163], byteorder='little')
-        if minor == 0x13:
-            self.ataMinor = "T13 1321D version 3"
-        elif minor == 0x15:
-            self.ataMinor = "T13 1321D version 1"
-        elif minor == 0x16:
-            self.ataMinor = "published, ANSI INCITS 340-2000"
-        elif minor == 0x18:
-            self.ataMinor = "T13 1410D version 0"
-        elif minor == 0x19:
-            self.ataMinor = "T13 1410D version 3a"
-        elif minor == 0x1A:
-            self.ataMinor = "T13 1532D version 1"
-        elif minor == 0x1B:
-            self.ataMinor = "T13 1410D version 2"
-        elif minor == 0x1C:
-            self.ataMinor = "T13 1410D version 1"
-        elif minor == 0x1D:
-            self.ataMinor = "published, ANSI INCITS 397-2005"
-        elif minor == 0x1E:
-            self.ataMinor = "T13 1532D version 0"
-        elif minor == 0x1F:
-            self.ataMinor = "T13/2161-D version 3b"
-        elif minor == 0x21:
-            self.ataMinor = "T13 1532D version 4a"
-        elif minor == 0x22:
-            self.ataMinor = "published, ANSI INCITS 361-2002"
-        elif minor == 0x27:
-            self.ataMinor = "T13/1699-D version 3c"
-        elif minor == 0x28:
-            self.ataMinor = "T13/1699-D version 6"
-        elif minor == 0x29:
-            self.ataMinor = "T13/1699-D version 4"
-        elif minor == 0x31:
-            self.ataMinor = "T13/2015-D Revision 2"
-        elif minor == 0x33:
-            self.ataMinor = "T13/1699-D version 3e"
-        elif minor == 0x39:
-            self.ataMinor = "T13/1699-D version 4c"
-        elif minor == 0x42:
-            self.ataMinor = "T13/1699-D version 3f"
-        elif minor == 0x52:
-            self.ataMinor = "T13/1699-D version 3b"
-        elif minor == 0x5E:
-            self.ataMinor = "T13/BSR INCITS 529 revision 5"
-        elif minor == 0x6D:
-            self.ataMinor = "T13/2161-D revision 5"
-        elif minor == 0x82:
-            self.ataMinor = "published, ANSI INCITS 482-2012"
-        elif minor == 0x107:
-            self.ataMinor = "T13/1699-D version 2a"
-        elif minor == 0x10A:
-            self.ataMinor = "published, ANSI INCITS 522-2014"
-        elif minor == 0x110:
-            self.ataMinor = "T13/2015-D Revision 3"
-        elif minor == 0x11b:
-            self.ataMinor = "T13/2015-D Revision 4"
-        else:
-            self.ataMinor = ""
+        self.ataMinor = {
+                0x13: "T13 1321D version 3",
+                0x15: "T13 1321D version 1",
+                0x16: "published, ANSI INCITS 340-2000",
+                0x18: "T13 1410D version 0",
+                0x19: "T13 1410D version 3a",
+                0x1A: "T13 1532D version 1",
+                0x1B: "T13 1410D version 2",
+                0x1C: "T13 1410D version 1",
+                0x1D: "published, ANSI INCITS 397-2005",
+                0x1E: "T13 1532D version 0",
+                0x1F: "T13/2161-D version 3b",
+                0x21: "T13 1532D version 4a",
+                0x22: "published, ANSI INCITS 361-2002",
+                0x27: "T13/1699-D version 3c",
+                0x28: "T13/1699-D version 6",
+                0x29: "T13/1699-D version 4",
+                0x31: "T13/2015-D Revision 2",
+                0x33: "T13/1699-D version 3e",
+                0x39: "T13/1699-D version 4c",
+                0x42: "T13/1699-D version 3f",
+                0x52: "T13/1699-D version 3b",
+                0x5E: "T13/BSR INCITS 529 revision 5",
+                0x6D: "T13/2161-D revision 5",
+                0x82: "published, ANSI INCITS 482-2012",
+                0x107: "T13/1699-D version 2a",
+                0x10A: "published, ANSI INCITS 522-2014",
+                0x110: "T13/2015-D Revision 3",
+                0x11b: "T13/2015-D Revision 4"
+        }.get(minor, "")
 
         # word 222 "Transport major version number"
-        major = int.from_bytes(buf[444] + buf[445], byteorder='little')
-        if major & 0x40:
-            self.transport = "SATA 3.1"
-        elif major & 0x20:
-            self.transport = "SATA 3.0"
-        elif major & 0x10:
-            self.transport = "SATA 2.6"
-        elif major & 0x8:
-            self.transport = "SATA 2.5"
-        elif major & 0x4:
-            self.transport = "SATA II Extensions"
-        elif major & 0x2:
-            self.transport = "SATA 1.0a"
-        elif major & 0x1:
-            self.transport = "ATA8-AST"
-        else:
-            self.transport = ""
+        major = int.from_bytes(buf[444] + buf[445], byteorder='little') & 0x7E
+        self.transport = {
+                0x7E: "SATA 3.1",
+                0x3E: "SATA 3.0",
+                0x1E: "SATA 2.6",
+                0x0E: "SATA 2.5",
+                0x07: "SATA II Extensions",
+                0x03: "SATA 1.0a"
+        }.get(major, "")
 
         # word 76 "Serial ATA capabilities"
-        cap = int.from_bytes(buf[152] + buf[153], byteorder='little')
-        if cap & 0x800:
-            self.sataGen = "Gen.3 (6.0Gb/s)"
-        elif cap & 0x400:
-            self.sataGen = "Gen.2 (3.0Gb/s)"
-        elif cap & 0x200:
-            self.sataGen = "Gen.1 (1.5Gb/s)"
-        else:
-            self.sataGen = ""
+        cap = int.from_bytes(buf[152] + buf[153], byteorder='little') & 0xE00
+        self.sataGen = {
+                0xE00: "Gen.3 (6.0Gb/s)",
+                0x600: "Gen.2 (3.0Gb/s)",
+                0x200: "Gen.1 (1.5Gb/s)"
+        }.get(cap, "")
 
         # word 83 "Commands and feature sets supported"
         features = int.from_bytes(buf[166] + buf[167], byteorder='little')
@@ -575,221 +522,114 @@ class atapt:
                 self.smart[aid].append(int.from_bytes(buf[2 + i * 12 + 1], byteorder='little'))
 
     def getSmartStr(self, id):
-        if id == 1:
-            return "Raw_Read_Error_Rate"
-        elif id == 2:
-            return "Throughput_Performance"
-        elif id == 3:
-            return "Spin_Up_Time"
-        elif id == 4:
-            return "Start_Stop_Count"
-        elif id == 5:
-            return "Reallocated_Sector_Ct"
-        elif id == 6:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Read_Channel_Margin"
-        elif id == 7:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Seek_Error_Rate"
-        elif id == 8:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Seek_Time_Performance"
-        elif id == 9:
-            return "Power_On_Hours"
-        elif id == 10:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Spin_Retry_Count"
-        elif id == 11:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Calibration_Retry_Count"
-        elif id == 12:
-            return "Power_Cycle_Count"
-        elif id == 13:
-            return "Read_Soft_Error_Rate"
-        elif id == 170:
-            if self.ssd:
-                return "Reserve_Block_Count"
-        elif id == 171:
-            if self.ssd:
-                return "Program_Fail_Count"
-        elif id == 172:
-            if self.ssd:
-                return "Erase_Fail_Count"
-        elif id == 174:
-            if self.ssd:
-                return "Unexpected_Power_Loss"
-        elif id == 175:
-            if not self.ssd:
-                return "Unknown_HDD_Attribute"
-            return "Program_Fail_Count_Chip"
-        elif id == 176:
-            if not self.ssd:
-                return "Unknown_HDD_Attribute"
-            return "Erase_Fail_Count_Chip"
-        elif id == 177:
-            if not self.ssd:
-                return "Unknown_HDD_Attribute"
-            return "Wear_Leveling_Count"
-        elif id == 178:
-            if not self.ssd:
-                return "Unknown_HDD_Attribute"
-            return "Used_Rsvd_Blk_Cnt_Chip"
-        elif id == 179:
-            if not self.ssd:
-                return "Unknown_HDD_Attribute"
-            return "Used_Rsvd_Blk_Cnt_Tot"
-        elif id == 180:
-            if not self.ssd:
-                return "Unknown_HDD_Attribute"
-            return "Unused_Rsvd_Blk_Cnt_Tot"
-        elif id == 181:
-            return "Program_Fail_Cnt_Total"
-        elif id == 182:
-            if not self.ssd:
-                return "Unknown_HDD_Attribute"
-            return "Erase_Fail_Count_Total"
-        elif id == 183:
-            return "Runtime_Bad_Block"
-        elif id == 184:
-            return "End-to-End_Error"
-        elif id == 187:
-            return "Reported_Uncorrect"
-        elif id == 188:
-            return "Command_Timeout"
-        elif id == 189:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "High_Fly_Writes"
-        elif id == 190:
-            return "Airflow_Temperature_Cel"
-        elif id == 191:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "G-Sense_Error_Rate"
-        elif id == 192:
-            return "Power-Off_Retract_Count"
-        elif id == 193:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Load_Cycle_Count"
-        elif id == 194:
-            return "Temperature_Celsius"
-        elif id == 195:
-            return "Hardware_ECC_Recovered"
-        elif id == 196:
-            return "Reallocated_Event_Count"
-        elif id == 197:
-            return "Current_Pending_Sector"
-        elif id == 198:
-            return "Offline_Uncorrectable"
-        elif id == 199:
-            return "UDMA_CRC_Error_Count"
-        elif id == 200:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Multi_Zone_Error_Rate"
-        elif id == 201:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Soft_Read_Error_Rate"
-        elif id == 202:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Data_Address_Mark_Errs"
-        elif id == 203:
-            return "Run_Out_Cancel"
-        elif id == 204:
-            return "Soft_ECC_Correction"
-        elif id == 205:
-            return "Thermal_Asperity_Rate"
-        elif id == 206:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Flying_Height"
-        elif id == 207:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Spin_High_Current"
-        elif id == 208:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Spin_Buzz"
-        elif id == 209:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Offline_Seek_Performnce"
-        elif id == 220:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Disk_Shift"
-        elif id == 221:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "G-Sense_Error_Rate"
-        elif id == 222:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Loaded_Hours"
-        elif id == 223:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Load_Retry_Count"
-        elif id == 224:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Load_Friction"
-        elif id == 225:
-            if self.ssd:
-                return "Host_Writes"
-            return "Load_Cycle_Count"
-        elif id == 226:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Load-in_Time"
-        elif id == 227:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Torq-amp_Count"
-        elif id == 228:
-            return "Power-off_Retract_Count"
-        elif id == 230:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Head_Amplitude"
-        elif id == 231:
-            if self.ssd:
-                return "SSD Life Left"
-            return "Temperature_Celsius"
-        elif id == 232:
-            return "Available_Reservd_Space"
-        elif id == 233:
-            if not self.ssd:
-                return "Unknown_HDD_Attribute"
-            return "Media_Wearout_Indicator"
-        elif id == 240:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Head_Flying_Hours"
-        elif id == 241:
-            return "Total_LBAs_Written"
-        elif id == 242:
-            return "Total_LBAs_Read"
-        elif id == 249:
-            if self.ssd:
-                return "Total_NAND_Writes"
-        elif id == 250:
-            return "Read_Error_Retry_Rate"
-        elif id == 254:
-            if self.ssd:
-                return "Unknown_SSD_Attribute"
-            return "Free_Fall_Sensor"
+        if self.ssd:
+            return {  # SSD SMART Attributes
+                    1: "Raw_Read_Error_Rate",
+                    2: "Throughput_Performance",
+                    3: "Spin_Up_Time",
+                    4: "Start_Stop_Count",
+                    5: "Reallocated_Sector_Ct",
+                    9: "Power_On_Hours",
+                    12: "Power_Cycle_Count",
+                    13: "Read_Soft_Error_Rate",
+                    170: "Reserve_Block_Count",
+                    171: "Program_Fail_Count",
+                    172: "Erase_Fail_Count",
+                    174: "Unexpected_Power_Loss",
+                    175: "Program_Fail_Count_Chip",
+                    176: "Erase_Fail_Count_Chip",
+                    177: "Wear_Leveling_Count",
+                    178: "Used_Rsvd_Blk_Cnt_Chip",
+                    179: "Used_Rsvd_Blk_Cnt_Tot",
+                    180: "Unused_Rsvd_Blk_Cnt_Tot",
+                    181: "Program_Fail_Cnt_Total",
+                    182: "Erase_Fail_Count_Total",
+                    183: "Runtime_Bad_Block",
+                    184: "End-to-End_Error",
+                    187: "Reported_Uncorrect",
+                    188: "Command_Timeout",
+                    190: "Airflow_Temperature_Cel",
+                    192: "Power-Off_Retract_Count",
+                    194: "Temperature_Celsius",
+                    195: "Hardware_ECC_Recovered",
+                    196: "Reallocated_Event_Count",
+                    197: "Current_Pending_Sector",
+                    198: "Offline_Uncorrectable",
+                    199: "UDMA_CRC_Error_Count",
+                    203: "Run_Out_Cancel",
+                    204: "Soft_ECC_Correction",
+                    205: "Thermal_Asperity_Rate",
+                    225: "Host_Writes",
+                    228: "Power-off_Retract_Count",
+                    231: "SSD Life Left",
+                    232: "Available_Reservd_Space",
+                    233: "Media_Wearout_Indicator",
+                    241: "Total_LBAs_Written",
+                    242: "Total_LBAs_Read",
+                    249: "Total_NAND_Writes",
+                    250: "Read_Error_Retry_Rate"
+            }.get(id, "Unknown_SSD_Attribute")
         else:
-            return "Unknown_Attribute"
+            return {  # HDD SMART Attributes
+                    1: "Raw_Read_Error_Rate",
+                    2: "Throughput_Performance",
+                    3: "Spin_Up_Time",
+                    4: "Start_Stop_Count",
+                    5: "Reallocated_Sector_Ct",
+                    6: "Read_Channel_Margin",
+                    7: "Seek_Error_Rate",
+                    8: "Seek_Time_Performance",
+                    9: "Power_On_Hours",
+                    10: "Spin_Retry_Count",
+                    11: "Calibration_Retry_Count",
+                    12: "Power_Cycle_Count",
+                    13: "Read_Soft_Error_Rate",
+                    170: "Reserve_Block_Count",
+                    181: "Program_Fail_Cnt_Total",
+                    183: "Runtime_Bad_Block",
+                    184: "End-to-End_Error",
+                    187: "Reported_Uncorrect",
+                    188: "Command_Timeout",
+                    189: "High_Fly_Writes",
+                    190: "Airflow_Temperature_Cel",
+                    191: "G-Sense_Error_Rate",
+                    192: "Power-Off_Retract_Count",
+                    193: "Load_Cycle_Count",
+                    194: "Temperature_Celsius",
+                    195: "Hardware_ECC_Recovered",
+                    196: "Reallocated_Event_Count",
+                    197: "Current_Pending_Sector",
+                    198: "Offline_Uncorrectable",
+                    199: "UDMA_CRC_Error_Count",
+                    200: "Multi_Zone_Error_Rate",
+                    201: "Soft_Read_Error_Rate",
+                    202: "Data_Address_Mark_Errs",
+                    203: "Run_Out_Cancel",
+                    204: "Soft_ECC_Correction",
+                    205: "Thermal_Asperity_Rate",
+                    206: "Flying_Height",
+                    207: "Spin_High_Current",
+                    208: "Spin_Buzz",
+                    209: "Offline_Seek_Performnce",
+                    220: "Disk_Shift",
+                    221: "G-Sense_Error_Rate",
+                    222: "Loaded_Hours",
+                    223: "Load_Retry_Count",
+                    224: "Load_Friction",
+                    225: "Load_Cycle_Count",
+                    226: "Load-in_Time",
+                    227: "Torq-amp_Count",
+                    228: "Power-off_Retract_Count",
+                    230: "Head_Amplitude",
+                    231: "Temperature_Celsius",
+                    232: "Available_Reservd_Space",
+                    233: "Media_Wearout_Indicator",
+                    240: "Head_Flying_Hours",
+                    241: "Total_LBAs_Written",
+                    242: "Total_LBAs_Read",
+                    250: "Read_Error_Retry_Rate",
+                    254: "Free_Fall_Sensor"
+            }.get(id, "Unknown_Attribute")
 
     def getSmartRawStr(self, id):
         if id == 3:
@@ -851,44 +691,30 @@ class atapt:
         for i in range(2, 485, 24):
             if buf[i] == b'\x00':
                 continue
-            if buf[i] == b'\x01':
-                test = "Short offline"
-            elif buf[i] == b'\x02':
-                test = "Extended offline"
-            elif buf[i] == b'\x03':
-                test = "Conveyance offline"
-            elif buf[i] == b'\x04':
-                test = "Selective offline"
-            elif buf[i] == b'\x81':
-                test = "Short captive"
-            elif buf[i] == b'\x82':
-                test = "Extended captive"
-            elif buf[i] == b'\x83':
-                test = "Conveyance captive"
-            elif buf[i] == b'\x84':
-                test = "Selective captive"
+            test = {
+                    b'\x01': "Short offline",
+                    b'\x02': "Extended offline",
+                    b'\x03': "Conveyance offline",
+                    b'\x04': "Selective offline",
+                    b'\x81': "Short captive",
+                    b'\x82': "Extended captive",
+                    b'\x83': "Conveyance captive",
+                    b'\x84': "Selective captive"
+            }.get(buf[i])
 
             st = int.from_bytes(buf[i + 1], byteorder='little') >> 4
-            if st == 0:
-                status = "completed"
-            elif st == 1:
-                status = "aborted by host"
-            elif st == 4:
-                status = "interrupted by reset"
-            elif st == 3:
-                status = "fatal error"
-            elif st == 2:
-                status = "unknoun failure"
-            elif st == 5:
-                status = "electrical failure"
-            elif st == 6:
-                status = "servo failure"
-            elif st == 7:
-                status = "read failure"
-            elif st == 8:
-                status = "handling damage"
-            elif st == 0x0F:
-                status = "in progress"
+            status = {
+                    0: "completed",
+                    1: "aborted by host",
+                    2: "unknoun failure",
+                    3: "fatal error",
+                    4: "interrupted by reset",
+                    5: "electrical failure",
+                    6: "servo failure",
+                    7: "read failure",
+                    8: "handling damage",
+                    0x0F: "in progress"
+            }.get(st)
 
             remaining = int((int.from_bytes(buf[i + 1], byteorder='little') & 0x0F) * 10)
             if remaining == 100:
