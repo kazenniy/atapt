@@ -41,6 +41,7 @@ SG_IO = 0x2285
 
 SPC_SK_ILLEGAL_REQUEST = 0x5
 
+libc = ctypes.CDLL('libc.so.6')
 
 class ataCmd(ctypes.Structure):
     """
@@ -215,7 +216,7 @@ class atapt:
             if buf is None:
                 raise sgioFalied("Got None instead buffer")
             buf_len = ctypes.sizeof(buf)
-            buf_p = ctypes.cast(buf, ctypes.c_void_p)
+            buf_p = ctypes.addressof(buf)
             if direction == SG_DXFER_FROM_DEV:
                 prot = 4 << 1  # PIO Data-In
             if direction == SG_DXFER_TO_DEV:
@@ -231,7 +232,7 @@ class atapt:
         if cmd in [ATA_READ_SECTORS_EXT, ATA_WRITE_SECTORS_EXT, ATA_READ_VERIFY_SECTORS_EXT]:
             prot = prot | 1  # + EXTEND
         sector_lba = lba.to_bytes(6, byteorder='little')
-        ata_cmd = ataCmd(opcode=0x85,  # ATA PASS-THROUGH (16)
+        self.ata_cmd = ataCmd(opcode=0x85,  # ATA PASS-THROUGH (16)
                          protocol=prot,
                          # flags field
                          # OFF_LINE = 0 (0 seconds offline)
@@ -250,18 +251,23 @@ class atapt:
                          command=cmd,
                          control=0)
 
-        sgio = sgioHdr(interface_id=ASCII_S, dxfer_direction=direction,
-                       cmd_len=ctypes.sizeof(ata_cmd),
+        self.sgio = sgioHdr(interface_id=ASCII_S, dxfer_direction=direction,
+                       cmd_len=ctypes.sizeof(self.ata_cmd),
                        mx_sb_len=ctypes.sizeof(self.sense), iovec_count=0,
                        dxfer_len=buf_len,
                        dxferp=buf_p,
-                       cmdp=ctypes.addressof(ata_cmd),
-                       sbp=ctypes.cast(self.sense, ctypes.c_void_p), timeout=self.timeout,
+                       cmdp=ctypes.addressof(self.ata_cmd),
+                       sbp=ctypes.addressof(self.sense), timeout=self.timeout,
                        flags=0, pack_id=0, usr_ptr=None, status=0, masked_status=0,
                        msg_status=0, sb_len_wr=0, host_status=0, driver_status=0,
                        resid=0, duration=0, info=0)
 
-        return sgio
+    def doSgio(self):
+        fd = os.open(self.dev, os.O_RDWR)
+        startTime = time.time()
+        if libc.ioctl(fd, SG_IO, ctypes.c_uint64(ctypes.addressof(self.sgio))) != 0:
+            raise sgioFalied("fcntl.ioctl falied")
+        self.duration = (time.time() - startTime) * 1000
 
     def checkExists(self, dev):
         if not os.path.exists(dev):
@@ -270,15 +276,9 @@ class atapt:
 
     def devIdentify(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_IDENTIFY, 0, 0, 0, SG_DXFER_FROM_DEV, buf)
+        self.prepareSgio(ATA_IDENTIFY, 0, 0, 0, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
         self.serial = swapString(buf[20:40])
         self.firmware = swapString(buf[46:53])
@@ -431,67 +431,37 @@ class atapt:
 
     def readSectors(self, count, start):
         buf = ctypes.c_buffer(count * self.logicalSectorSize)
-        sgio = self.prepareSgio(self.readCommand, 0, count, start, SG_DXFER_FROM_DEV, buf)
+        self.prepareSgio(self.readCommand, 0, count, start, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
         return buf
 
     def verifySectors(self, count, start):
-        sgio = self.prepareSgio(self.verifyCommand, 0, count, start, SG_DXFER_NONE, None)
+        self.prepareSgio(self.verifyCommand, 0, count, start, SG_DXFER_NONE, None)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
 
     def writeSectors(self, count, start, buf):
-        sgio = self.prepareSgio(self.writeCommand, 0, count, start, SG_DXFER_TO_DEV, buf)
+        self.prepareSgio(self.writeCommand, 0, count, start, SG_DXFER_TO_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
 
     def readSmartValues(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, SG_DXFER_FROM_DEV, buf)
+        self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_VALUES, 1, SMART_LBA, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
         return buf
 
     def readSmartThresholds(self):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, SG_DXFER_FROM_DEV, buf)
+        self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_THRESHOLDS, 1, SMART_LBA, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
         return buf
 
@@ -644,43 +614,25 @@ class atapt:
             return str(self.smart[id][4])
 
     def readSmartStatus(self):
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_RETURN_STATUS, 1, SMART_LBA, SG_DXFER_NONE, None)
+        self.prepareSgio(ATA_SMART_COMMAND, SMART_RETURN_STATUS, 1, SMART_LBA, SG_DXFER_NONE, None)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
         status = int.from_bytes(self.sense[17] + self.sense[19], byteorder='little')
         return status
 
     def readSmartLog(self, logAddress):
         buf = ctypes.c_buffer(512)
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_LOG, 1, SMART_LBA + logAddress, SG_DXFER_FROM_DEV, buf)
+        self.prepareSgio(ATA_SMART_COMMAND, SMART_READ_LOG, 1, SMART_LBA + logAddress, SG_DXFER_FROM_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
         return buf
 
     def runSmartSelftest(self, subcommand):
-        sgio = self.prepareSgio(ATA_SMART_COMMAND, SMART_EXECUTE_OFFLINE_IMMEDIATE, 1, SMART_LBA + subcommand, SG_DXFER_NONE, None)
+        self.prepareSgio(ATA_SMART_COMMAND, SMART_EXECUTE_OFFLINE_IMMEDIATE, 1, SMART_LBA + subcommand, SG_DXFER_NONE, None)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         self.checkSense()
 
     def getSelftestLog(self):
@@ -736,15 +688,9 @@ class atapt:
         for b in pwd:
             buf[i] = b
             i = i + 1
-        sgio = self.prepareSgio(SECURITY_DISABLE_PASSWORD, 0, 0, 0, SG_DXFER_TO_DEV, buf)
+        self.prepareSgio(SECURITY_DISABLE_PASSWORD, 0, 0, 0, SG_DXFER_TO_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         try:
             self.checkSense()
         except senseError:
@@ -761,30 +707,18 @@ class atapt:
         for b in pwd:
             buf[i] = b
             i = i + 1
-        sgio = self.prepareSgio(SECURITY_UNLOCK, 0, 0, 0, SG_DXFER_TO_DEV, buf)
+        self.prepareSgio(SECURITY_UNLOCK, 0, 0, 0, SG_DXFER_TO_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         try:
             self.checkSense()
         except senseError:
             raise securityError()
 
     def securityFreeze(self):
-        sgio = self.prepareSgio(SECURITY_FREEZE_LOCK, 0, 0, 0, SG_DXFER_NONE, None)
+        self.prepareSgio(SECURITY_FREEZE_LOCK, 0, 0, 0, SG_DXFER_NONE, None)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         try:
             self.checkSense()
         except senseError:
@@ -803,12 +737,8 @@ class atapt:
         for b in pwd:
             buf[i] = b
             i = i + 1
-        sgio = self.prepareSgio(SECURITY_ERASE_PREPARE, 0, 0, 0, SG_DXFER_NONE, None)
-        with open(self.dev, 'r') as fd:
-            try:
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
+        self.prepareSgio(SECURITY_ERASE_PREPARE, 0, 0, 0, SG_DXFER_NONE, None)
+        self.doSgio()
         tempTimeout = self.timeout
         if enhanced:
             self.timeout = self.enhancedEraseTimeout
@@ -818,16 +748,9 @@ class atapt:
             self.timeout = 12 * 60 * 60 * 1000  # default timeout twelve hours
         else:
             self.timeout = (self.timeout + 30) * 60 * 1000  # +30min then convert to milliseconds
-        sgio = self.prepareSgio(SECURITY_ERASE_UNIT, 0, 0, 0, SG_DXFER_TO_DEV, buf)
+        self.prepareSgio(SECURITY_ERASE_UNIT, 0, 0, 0, SG_DXFER_TO_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.timeout = tempTimeout
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         try:
             self.checkSense()
         except senseError:
@@ -846,18 +769,11 @@ class atapt:
         for b in pwd:
             buf[i] = b
             i = i + 1
-        sgio = self.prepareSgio(SECURITY_SET_PASSWORD, 0, 0, 0, SG_DXFER_TO_DEV, buf)
+        self.prepareSgio(SECURITY_SET_PASSWORD, 0, 0, 0, SG_DXFER_TO_DEV, buf)
         self.clearSense()
-        with open(self.dev, 'r') as fd:
-            try:
-                startTime = time.time()
-                fcntl.ioctl(fd, SG_IO, ctypes.addressof(sgio))
-            except IOError:
-                raise sgioFalied("fcntl.ioctl falied")
-        self.duration = (time.time() - startTime) * 1000
+        self.doSgio()
         try:
             self.checkSense()
         except senseError:
             raise securityError()
-
 
