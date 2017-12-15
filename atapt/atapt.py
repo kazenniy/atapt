@@ -189,7 +189,7 @@ class atapt:
     def checkSense(self):
         response_code = 0x7f & int.from_bytes(
             self.sense[0], byteorder='little')
-        if response_code >= 0x72:
+        if response_code >= 0x70:
             sense_key = 0xf & int.from_bytes(self.sense[1], byteorder='little')
             asc = self.sense[2]
             ascq = self.sense[3]
